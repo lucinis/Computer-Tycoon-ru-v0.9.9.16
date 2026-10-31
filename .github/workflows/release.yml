@@ -1,0 +1,41 @@
+name: Publish Russian language pack
+
+on:
+  push:
+    branches: [main]
+    paths: [release.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-russian-pack
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'lucinis/Computer-Tycoon-ru-v0.9.9.16' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch the exact public commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Build package from verified upstream components
+        run: python3 scripts/build_package.py
+
+      - name: Validate package
+        run: python3 scripts/publish_release.py --check
+
+      - name: Publish ZIP and checksum
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/publish_release.py
